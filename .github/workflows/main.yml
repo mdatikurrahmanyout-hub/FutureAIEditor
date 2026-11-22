@@ -4,7 +4,8 @@ name: Build Future AI Editor APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   build:
@@ -22,15 +23,29 @@ jobs:
 
       - name: Extract Android project ZIP
         run: |
+          mkdir -p extracted
           unzip -o FutureAIEditor_CleanProject.zip -d extracted
-          cp -a extracted/. .
+          PROJECT_DIR=$(find extracted -name settings.gradle.kts -printf '%h\n' | head -n 1)
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "Android project ZIP is missing settings.gradle.kts"
+            exit 1
+          fi
+          cp -a "$PROJECT_DIR"/. .
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
       - name: Build APK
         run: |
-          gradle --version
           gradle assembleDebug
 
       - name: Upload APK
